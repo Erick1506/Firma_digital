@@ -1,0 +1,13 @@
+# Ignorar carpetas pesadas
+dist/
+build/
+firmados/
+temp/
+
+# Ignorar ejecutables
+*.exe
+
+# PyInstaller y entorno virtual si aplica
+*.spec
+__pycache__/
+*.pyc

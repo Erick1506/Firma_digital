@@ -1,0 +1,6 @@
+pip install pyinstaller
+pip install PyMuPDF
+pip install PyQt5
+pip install pyHanko
+pip install docx2pdf
+
