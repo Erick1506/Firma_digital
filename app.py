@@ -21,8 +21,8 @@ import docx2pdf
 from asn1crypto.keys import PrivateKeyInfo
 import subprocess
 
-TARGET_TEXT = "WOLFANG ALBERTO LATORRE MARTINEZ" # - Coordinador
-# TARGET_TEXT = "GERARDO ARTURO MEDINA ROSAS" - Director
+# TARGET_TEXT = "WOLFANG ALBERTO LATORRE MARTINEZ"  # - Coordinador
+TARGET_TEXT = "GERARDO ARTURO MEDINA ROSAS" # - Director
 
 class SignThread(QThread):
     progress = pyqtSignal(int)
@@ -78,19 +78,19 @@ class SignThread(QThread):
                     append_signature_field(w, SigFieldSpec(sig_field_name="FirmaDigital"))
 
 
-                    '''
-                     Metadata que ayuda a que Acrobat muestre info al hacer clic en la firma - Director
-                     metadata = signers.PdfSignatureMetadata(
+                    
+                    # Metadata que ayuda a que Acrobat muestre info al hacer clic en la firma - Director (Editar información)
+                    metadata = signers.PdfSignatureMetadata(
                         field_name="FirmaDigital",
                         name="Gerardo Arturo Medina Rosas",
                         reason="Documento firmado digitalmente",
                         location="Bogotá, Colombia",
-                        contact_info="correo@ejemplo.com", 
+                        contact_info="walatorrem@sena.edu.co", 
                         certify=True,  # TRUE (CERTIFICADO) || FALSE (VALIDADO)  (ROLES DIFERENTES)
                         docmdp_permissions=MDPPerm.NO_CHANGES 
                     )
-                    '''
                     
+                    '''
                     # Metadata que ayuda a que Acrobat muestre info al hacer clic en la firma - Coordinador
                     metadata = signers.PdfSignatureMetadata(
                         field_name="FirmaDigital",
@@ -101,7 +101,7 @@ class SignThread(QThread):
                         certify=False,  # firma de Aprobación (False) || Certificación (True)  (Roles diferentes)
                         docmdp_permissions=MDPPerm.NO_CHANGES 
                     )
-
+                    ''' 
                     pdf_signed = signers.sign_pdf(w, metadata, signer=self.signer, new_field_spec=None)
 
                     with open(output_file, "wb") as outf:
@@ -129,9 +129,9 @@ class SignThread(QThread):
         doc = fitz.open(pdf_path)
         page = doc[-1]  # Última página
 
-        '''
-         Lista de posibles nombres - Director
-         posibles_nombres = [
+        
+         # Lista de posibles nombres - Director
+        posibles_nombres = [
             "GERARDO ARTURO MEDINA ROSAS",
             "Gerardo Arturo Medina Rosas",
             "gerardo arturo medina rosas",
@@ -139,6 +139,7 @@ class SignThread(QThread):
             "Gerardo A. Medina",
             "Medina Rosas Gerardo Arturo"
         ]
+
         '''
 
         # Lista de posibles nombres - Coordinador
@@ -153,7 +154,7 @@ class SignThread(QThread):
             "Wolfang Latorre",
             "W. A. LATORRE MARTINEZ",
         ]
-
+        '''
         # Normalizar función: quita tildes y pasa a minúsculas
         def normalize_text(t: str) -> str:
             if t is None:
