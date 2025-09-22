@@ -1,6 +1,10 @@
-pip install pyinstaller
-pip install PyMuPDF
-pip install PyQt5
-pip install pyHanko
-pip install docx2pdf
+pyinstaller
+PyMuPDF
+PyQt5
+pyHanko
+docx2pdf
 
+
+# python -m pip install --upgrade pip
+
+# pip install -r requirements.txt

@@ -179,8 +179,8 @@ class SignThread(QThread):
                         # CONFIGURACIÓN DEL LOGO (dinámica)
                         # ==============================
                         # Tamaño deseado del logo (ajustable)
-                        logo_width = 160
-                        logo_height = 50
+                        logo_width = 165
+                        logo_height = 55
 
                         # Separación horizontal y vertical respecto al texto detectado
                         gap_right = 10  # espacio entre el final del texto (x1) y el borde derecho del logo
