@@ -21,9 +21,95 @@ import docx2pdf
 from asn1crypto.keys import PrivateKeyInfo
 import subprocess
 
-# TARGET_TEXT = "WOLFANG ALBERTO LATORRE MARTINEZ"  # - Coordinador
-TARGET_TEXT = "GERARDO ARTURO MEDINA ROSAS" # - Director
+# Valor por defecto (se sobrescribirá según selección de rol)
+TARGET_TEXT = "WOLFANG ALBERTO LATORRE MARTINEZ"  # - Coordinador (fallback)
 
+# =====================================
+# CONFIGURACIÓN DE ROLES (NO MODIFICAR)
+# =====================================
+roles_config = {
+    "Director": {
+        "nombre": "GERARDO ARTURO MEDINA ROSAS",
+        "posibles_nombres": [
+            "GERARDO ARTURO MEDINA ROSAS",
+            "Gerardo Arturo Medina Rosas",
+            "gerardo arturo medina rosas",
+            "G. A. Medina Rosas",
+            "Gerardo A. Medina",
+            "Medina Rosas Gerardo Arturo"
+        ],
+        "logo": os.path.join("firma", "logo_director.png"),
+        "metadata": signers.PdfSignatureMetadata(
+            field_name="FirmaDigital",
+            name="Gerardo Arturo Medina Rosas",
+            reason="Documento firmado digitalmente",
+            location="Bogotá, Colombia",
+            contact_info="gerardo.medina@sena.edu.co",
+            certify=True,
+            docmdp_permissions=MDPPerm.NO_CHANGES
+        )
+    },
+    "Coordinador": {
+        "nombre": "WOLFANG ALBERTO LATORRE MARTINEZ",
+        "posibles_nombres": [
+            "WOLFANG ALBERTO LATORRE MARTINEZ",
+            "WOLFANG ALBERTO LATORRE MARTÍNEZ",
+            "Wolfang Alberto Latorre Martinez",
+            "Wolfang Alberto Latorre Martínez",
+            "wolfang alberto latorre martinez",
+            "wolfang alberto latorre martínez",
+            "WOLFANG A. LATORRE",
+            "Wolfang Latorre",
+            "W. A. LATORRE MARTINEZ",
+        ],
+        "logo": os.path.join("firma", "logo_coordinador.png"),
+        "metadata": signers.PdfSignatureMetadata(
+            field_name="FirmaDigital",
+            name="Wolfang Alberto Latorre Martinez",
+            reason="Documento firmado digitalmente",
+            location="Bogotá, Colombia",
+            contact_info="walatorrem@sena.edu.co",
+            certify=False,
+            docmdp_permissions=MDPPerm.NO_CHANGES
+        )
+    }
+}
+
+# variables globales que se llenan tras elegir rol
+SELECTED_METADATA = None
+SELECTED_POSIBLES_NOMBRES = None
+SELECTED_LOGO_REL = None  # ruta relativa dentro del proyecto (ej: "firma/logo_coordinador.png")
+SELECTED_ROLE_NAME = None
+
+
+# =====================================
+# FUNCIÓN PARA SELECCIONAR ROL (AL INICIO)
+# =====================================
+def seleccionar_rol():
+    """
+    Muestra un diálogo para elegir rol (Director / Coordinador).
+    Rellena las variables globales SELECTED_... según la elección.
+    Debe llamarse después de crear QApplication.
+    """
+    global SELECTED_METADATA, SELECTED_POSIBLES_NOMBRES, SELECTED_LOGO_REL, SELECTED_ROLE_NAME, TARGET_TEXT
+
+    opciones = list(roles_config.keys())
+    rol, ok = QInputDialog.getItem(None, "Seleccionar Rol", "Elija el rol:", opciones, 0, False)
+    if not ok or not rol:
+        QMessageBox.critical(None, "Rol no seleccionado", "Debe seleccionar un rol para continuar. Saliendo.")
+        sys.exit(1)
+
+    cfg = roles_config[rol]
+    SELECTED_METADATA = cfg["metadata"]
+    SELECTED_POSIBLES_NOMBRES = cfg["posibles_nombres"]
+    SELECTED_LOGO_REL = cfg["logo"]
+    SELECTED_ROLE_NAME = cfg["nombre"]
+    TARGET_TEXT = cfg["nombre"]  # sobrescribir TARGET_TEXT para compatibilidad
+
+
+# =====================================
+# HILO DE FIRMA (estructura original preservada)
+# =====================================
 class SignThread(QThread):
     progress = pyqtSignal(int)
     message = pyqtSignal(str, bool)
@@ -77,31 +163,17 @@ class SignThread(QThread):
                     w = IncrementalPdfFileWriter(inf)
                     append_signature_field(w, SigFieldSpec(sig_field_name="FirmaDigital"))
 
-
-                    
-                    # Metadata que ayuda a que Acrobat muestre info al hacer clic en la firma - Director (Editar información)
-                    metadata = signers.PdfSignatureMetadata(
-                        field_name="FirmaDigital",
-                        name="Gerardo Arturo Medina Rosas",
-                        reason="Documento firmado digitalmente",
-                        location="Bogotá, Colombia",
-                        contact_info="walatorrem@sena.edu.co", 
-                        certify=True,  # TRUE (CERTIFICADO) || FALSE (VALIDADO)  (ROLES DIFERENTES)
-                        docmdp_permissions=MDPPerm.NO_CHANGES 
-                    )
-                    
-                    '''
-                    # Metadata que ayuda a que Acrobat muestre info al hacer clic en la firma - Coordinador
-                    metadata = signers.PdfSignatureMetadata(
+                    # Usar metadata según rol seleccionado
+                    metadata = SELECTED_METADATA if SELECTED_METADATA is not None else signers.PdfSignatureMetadata(
                         field_name="FirmaDigital",
                         name="Wolfang Alberto Latorre Martinez",
                         reason="Documento firmado digitalmente",
                         location="Bogotá, Colombia",
                         contact_info="walatorrem@sena.edu.co",
-                        certify=False,  # firma de Aprobación (False) || Certificación (True)  (Roles diferentes)
-                        docmdp_permissions=MDPPerm.NO_CHANGES 
+                        certify=False,
+                        docmdp_permissions=MDPPerm.NO_CHANGES
                     )
-                    ''' 
+
                     pdf_signed = signers.sign_pdf(w, metadata, signer=self.signer, new_field_spec=None)
 
                     with open(output_file, "wb") as outf:
@@ -129,21 +201,8 @@ class SignThread(QThread):
         doc = fitz.open(pdf_path)
         page = doc[-1]  # Última página
 
-        
-         # Lista de posibles nombres - Director
-        posibles_nombres = [
-            "GERARDO ARTURO MEDINA ROSAS",
-            "Gerardo Arturo Medina Rosas",
-            "gerardo arturo medina rosas",
-            "G. A. Medina Rosas",
-            "Gerardo A. Medina",
-            "Medina Rosas Gerardo Arturo"
-        ]
-
-        '''
-
-        # Lista de posibles nombres - Coordinador
-        posibles_nombres = [
+        # Obtener lista de nombres desde selección; si no está, usar lista por defecto (Coordinador)
+        posibles_nombres = SELECTED_POSIBLES_NOMBRES or [
             "WOLFANG ALBERTO LATORRE MARTINEZ",
             "WOLFANG ALBERTO LATORRE MARTÍNEZ",
             "Wolfang Alberto Latorre Martinez",
@@ -154,7 +213,7 @@ class SignThread(QThread):
             "Wolfang Latorre",
             "W. A. LATORRE MARTINEZ",
         ]
-        '''
+
         # Normalizar función: quita tildes y pasa a minúsculas
         def normalize_text(t: str) -> str:
             if t is None:
@@ -287,15 +346,23 @@ class SignThread(QThread):
             doc.close()
 
 
+# =====================================
+# APP PRINCIPAL (estructura original preservada)
+# =====================================
 class FirmaDigitalApp(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Firma Digital Masiva - Certificación de Documentos By: Erick")
         self.resize(600, 600)
 
-        self.logo_path = os.path.join(os.getcwd(), "firma", "logo.png")
-        if not os.path.exists(self.logo_path):
-            self.logo_path = None
+        # Ruta base del logo por defecto (mantengo tu comportamiento original como fallback)
+        default_logo = os.path.join(os.getcwd(), "firma", "logo.png")
+        # Si el rol seleccionado puso una ruta relativa, construir la ruta absoluta y usarla si existe
+        if SELECTED_LOGO_REL:
+            candidate = os.path.join(os.getcwd(), SELECTED_LOGO_REL)
+            self.logo_path = candidate if os.path.exists(candidate) else (default_logo if os.path.exists(default_logo) else None)
+        else:
+            self.logo_path = default_logo if os.path.exists(default_logo) else None
 
         self.cert_path = None
         self.cert_password = None
@@ -488,8 +555,15 @@ class FirmaDigitalApp(QWidget):
             QMessageBox.warning(self, "Carpeta no disponible", "No se ha definido la carpeta de documentos firmados.")
 
 
+# =====================================
+# MAIN
+# =====================================
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+
+    # pedir rol antes de crear la ventana principal
+    seleccionar_rol()
+
     ventana = FirmaDigitalApp()
     ventana.show()
     sys.exit(app.exec_())
