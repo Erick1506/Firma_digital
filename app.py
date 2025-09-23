@@ -44,8 +44,8 @@ roles_config = {
             name="Gerardo Arturo Medina Rosas",
             reason="Documento firmado digitalmente",
             location="Bogotá, Colombia",
-            contact_info="gerardo.medina@sena.edu.co",
-            certify=True,
+            contact_info="gerardo.medina@sena.edu.co", # Editar --
+            certify=True, # TRUE (CERTIFICADO) || FALSE (VALIDADO)  (ROLES DIFERENTES)
             docmdp_permissions=MDPPerm.NO_CHANGES
         )
     },
@@ -69,7 +69,7 @@ roles_config = {
             reason="Documento firmado digitalmente",
             location="Bogotá, Colombia",
             contact_info="walatorrem@sena.edu.co",
-            certify=False,
+            certify=False, # TRUE (CERTIFICADO) || FALSE (VALIDADO)  (ROLES DIFERENTES)
             docmdp_permissions=MDPPerm.NO_CHANGES
         )
     }
@@ -170,7 +170,7 @@ class SignThread(QThread):
                         reason="Documento firmado digitalmente",
                         location="Bogotá, Colombia",
                         contact_info="walatorrem@sena.edu.co",
-                        certify=False,
+                        certify=False,  # firma de Aprobación (False) || Certificación (True)  (Roles diferentes)
                         docmdp_permissions=MDPPerm.NO_CHANGES
                     )
 
@@ -330,7 +330,7 @@ class SignThread(QThread):
         # fin bloques
 
         if not logo_inserted:
-            # Si no lo encuentra, mostramos aviso en interfaz.
+            # Si no lo encuentra, se muestra un aviso en interfaz
             self.message.emit(f"⚠ No se encontró ningún nombre en {os.path.basename(pdf_path)}; no se insertó logo.", True)
 
         # Guardar cambios en el PDF (incremental)
@@ -352,10 +352,10 @@ class SignThread(QThread):
 class FirmaDigitalApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Firma Digital Masiva - Certificación de Documentos By: Erick")
+        self.setWindowTitle("Firma Digital Masiva - Certificación de Documentos By: Erick.Z")
         self.resize(600, 600)
 
-        # Ruta base del logo por defecto (mantengo tu comportamiento original como fallback)
+        # Ruta base del logo por defecto 
         default_logo = os.path.join(os.getcwd(), "firma", "logo.png")
         # Si el rol seleccionado puso una ruta relativa, construir la ruta absoluta y usarla si existe
         if SELECTED_LOGO_REL:
