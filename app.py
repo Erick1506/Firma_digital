@@ -20,6 +20,8 @@ from pyhanko_certvalidator.registry import SimpleCertificateStore
 import docx2pdf
 from asn1crypto.keys import PrivateKeyInfo
 import subprocess
+import shutil
+import platform
 
 # Valor por defecto (se sobrescribirá según selección de rol)
 TARGET_TEXT = "WOLFANG ALBERTO LATORRE MARTINEZ"  # - Coordinador (fallback)
@@ -108,6 +110,91 @@ def seleccionar_rol():
 
 
 # =====================================
+# FUNCIÓN: convertir DOC/DOCX -> PDF 
+# =====================================
+def convert_word_to_pdf(input_path, prefer_tempdir=True):
+    """
+    Intenta convertir input_path (.docx/.doc) a PDF.
+    1) Usa LibreOffice (soffice) si está disponible.
+    2) Si falla, intenta docx2pdf (Word+COM).
+    Devuelve la ruta absoluta del PDF generado o lanza Exception si no pudo.
+    """
+    if not os.path.exists(input_path):
+        raise Exception(f"Archivo de entrada no existe: {input_path}")
+
+    base_name = os.path.splitext(os.path.basename(input_path))[0]
+    # preferir tempdir para no escribir en carpetas con permisos especiales
+    outdir = tempfile.gettempdir() if prefer_tempdir else os.path.dirname(input_path)
+    out_pdf = os.path.join(outdir, base_name + ".pdf")
+
+    # 1) Buscar soffice en rutas comunes
+    soffice_candidates = [
+        r"C:\Program Files\LibreOffice\program\soffice.exe",
+        r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+        "/usr/bin/soffice",
+        "/snap/bin/libreoffice",
+        shutil.which("soffice") or "",
+        shutil.which("libreoffice") or ""
+    ]
+    soffice_cmd = None
+    for p in soffice_candidates:
+        if p and os.path.exists(p):
+            soffice_cmd = p
+            break
+
+    if not soffice_cmd:
+        # intentar los comandos detectados por shutil.which
+        for cmd in ("soffice", "libreoffice"):
+            path_cmd = shutil.which(cmd)
+            if path_cmd:
+                soffice_cmd = path_cmd
+                break
+
+    # Intentar LibreOffice si se encontró
+    if soffice_cmd:
+        try:
+            # Asegurar que outdir existe
+            os.makedirs(outdir, exist_ok=True)
+            proc = subprocess.run([
+                soffice_cmd,
+                "--headless", "--convert-to", "pdf", input_path,
+                "--outdir", outdir
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+            # Verificar salida
+            if os.path.exists(out_pdf):
+                return out_pdf
+            else:
+                # si no existe, capturar salida para el error
+                stdout = proc.stdout.decode(errors="ignore") if proc.stdout else ""
+                stderr = proc.stderr.decode(errors="ignore") if proc.stderr else ""
+                # intentar otras variantes (por ejemplo en algunas instalaciones el parámetro --outdir no funciona igual)
+                # pero no complicamos más: pasamos a fallback
+                # registrar mensaje en excepción
+                raise Exception(f"LibreOffice falló a convertir. stdout: {stdout}; stderr: {stderr}")
+        except Exception as e:
+            # no terminar aquí: intentaremos docx2pdf como fallback
+            pass
+
+    # 2) Fallback: intentar docx2pdf -> usa Word + COM en Windows
+    try:
+        # docx2pdf.accepts both (input, output) signature in modern versions
+        # intentamos generar en outdir
+        os.makedirs(outdir, exist_ok=True)
+        docx2pdf.convert(input_path, out_pdf)
+        if os.path.exists(out_pdf):
+            return out_pdf
+        # en algunos entornos docx2pdf.convert(input) crea en la misma carpeta de origen; comprobarlo
+        alt = input_path.replace(".docx", ".pdf").replace(".doc", ".pdf")
+        if os.path.exists(alt):
+            return alt
+        raise Exception("docx2pdf no produjo el PDF esperado.")
+    except Exception as ex:
+        # nada funcionó
+        raise Exception(f"No se pudo convertir {input_path} a PDF: {ex}")
+
+
+# =====================================
 # HILO DE FIRMA (estructura original preservada)
 # =====================================
 class SignThread(QThread):
@@ -137,8 +224,16 @@ class SignThread(QThread):
                 # Conversión Word -> PDF
                 if file.endswith((".docx", ".doc")):
                     self.message.emit(f"Convirtiendo {filename} a PDF...", False)
-                    temp_pdf = os.path.join(tempfile.gettempdir(), filename + ".pdf")
-                    docx2pdf.convert(file, temp_pdf)
+
+                    # Usar la función robusta de conversión (LibreOffice preferido, docx2pdf fallback)
+                    try:
+                        temp_pdf = convert_word_to_pdf(file, prefer_tempdir=True)
+                    except Exception as conv_err:
+                        # Forzar mensaje claro y re-lanzar para manejo unificado
+                        raise Exception(f"Fallo conversión Word->PDF: {conv_err}")
+
+                    if not temp_pdf or not os.path.exists(temp_pdf):
+                        raise Exception("No se generó el PDF tras conversión.")
                     file = temp_pdf
                     self.message.emit(f"Archivo convertido: {file}", False)
 
@@ -174,10 +269,16 @@ class SignThread(QThread):
                         docmdp_permissions=MDPPerm.NO_CHANGES
                     )
 
+                    # signers.sign_pdf devuelve un file-like; manejar excepción si es None
                     pdf_signed = signers.sign_pdf(w, metadata, signer=self.signer, new_field_spec=None)
+                    if pdf_signed is None:
+                        raise Exception("La función de firma devolvió None (signers.sign_pdf falló).")
 
                     with open(output_file, "wb") as outf:
-                        outf.write(pdf_signed.read())
+                        data = pdf_signed.read()
+                        if data is None:
+                            raise Exception("El resultado de la firma está vacío (None).")
+                        outf.write(data)
 
                     self.message.emit(f"Documento firmado correctamente: {output_file}", False)
 
