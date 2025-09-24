@@ -266,8 +266,8 @@ class SignThread(QThread):
                         # CONFIGURACIÓN DEL LOGO (dinámica)
                         # ==============================
                         # Tamaño deseado del logo (ajustable)
-                        logo_width = 165
-                        logo_height = 55
+                        logo_width = 167
+                        logo_height = 62
 
                         # Separación horizontal y vertical respecto al texto detectado
                         gap_right = 10  # espacio entre el final del texto (x1) y el borde derecho del logo
@@ -371,6 +371,12 @@ class FirmaDigitalApp(QWidget):
 
         layout = QVBoxLayout()
 
+        # Botón de Instrucciones 
+
+        btn_help = QPushButton("📘 Instrucciones de uso")
+        btn_help.clicked.connect(self.show_instructions)
+        layout.addWidget(btn_help)
+
         btn_files = QPushButton("Seleccionar archivos (PDF/Word)")
         btn_files.clicked.connect(self.load_files)
         layout.addWidget(btn_files)
@@ -411,6 +417,24 @@ class FirmaDigitalApp(QWidget):
         layout.addWidget(self.status_box)
 
         self.setLayout(layout)
+    
+    def show_instructions(self):
+        instrucciones = (
+            "📘 Instrucciones de uso:\n\n"
+            "1. Seleccione el rol (Director o Coordinador).\n"
+            "2️. Haga clic en 'Seleccionar archivos' y cargue documentos PDF o Word.\n"
+            "   - Los .doc y .docx se convierten automáticamente a PDF.\n"
+            "3️. Seleccione su certificado (.pfx) y escriba la contraseña.\n"
+            "4️. Pulse 'Firmar masivamente'.\n"
+            "   - El sistema normaliza cada PDF.\n"
+            "   - Inserta el logo correspondiente al rol.\n"
+            "   - Firma digitalmente con el certificado.\n"
+            "5️. Revise la carpeta 'firmados' para encontrar los documentos.\n"
+            "6️. Use el botón 'Ver firmados' para abrir directamente la carpeta.\n\n"
+            "⚠ Nota: Si ya existen archivos con el mismo nombre, se le preguntará "
+            "si desea reemplazarlos."
+        )
+        QMessageBox.information(self, "Guía de uso", instrucciones)
 
     def log_message(self, message, error=False):
         if error:
