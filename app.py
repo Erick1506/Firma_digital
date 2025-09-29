@@ -173,7 +173,7 @@ def convert_word_to_pdf(input_path, prefer_tempdir=True):
                 # registrar mensaje en excepción
                 raise Exception(f"LibreOffice falló a convertir. stdout: {stdout}; stderr: {stderr}")
         except Exception as e:
-            # no terminar aquí: intentaremos docx2pdf como fallback
+            # intentar docx2pdf como fallback
             pass
 
     # 2) Fallback: intentar docx2pdf -> usa Word + COM en Windows
